@@ -58,75 +58,74 @@
   </main>
 
   <script type="module">
-  import { supabase } from "./assets/auth.js";
+    import { supabase } from "./assets/auth.js";
 
-  console.log('Supabase Client in Login:', supabase);
+    console.log('Supabase Client in Login:', supabase);
 
-  const showMsg = (text, type = 'err') => {
-    const el = document.getElementById('msg');
-    el.textContent = text;
-    el.className = `mt-3 text-center text-sm ${type === 'err' ? 'text-red-200' : 'text-emerald-200'}`;
-    el.classList.remove('hidden');
-    setTimeout(() => { el.classList.add('hidden'); }, 3500);
-  };
+    const showMsg = (text, type = 'err') => {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = `mt-3 text-center text-sm ${type === 'err' ? 'text-red-200' : 'text-emerald-200'}`;
+      el.classList.remove('hidden');
+      setTimeout(() => { el.classList.add('hidden'); }, 3500);
+    };
 
-  document.addEventListener('click', (e) => {
-    if (e.target?.id === 'btn-toggle') {
-      const inp = document.getElementById('senha');
-      inp.type = inp.type === 'password' ? 'text' : 'password';
-    }
-  });
-
-  async function doLogin(e) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const email = form.email.value.trim();
-    const password = form.senha.value;
-
-    if (!email || !password) { showMsg('Preencha e-mail e senha.', 'err'); return; }
-
-    const btn = document.getElementById('btn-login');
-    const old = btn.textContent;
-    btn.disabled = true; btn.textContent = 'Entrando…';
-
-    try {
-      console.log('Attempting login with:', { email, password });
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        showMsg(error.message || 'Erro ao autenticar.', 'err');
-        console.error('Login error:', error);
-        return;
+    document.addEventListener('click', (e) => {
+      if (e.target?.id === 'btn-toggle') {
+        const inp = document.getElementById('senha');
+        inp.type = inp.type === 'password' ? 'text' : 'password';
       }
-      const next = new URLSearchParams(location.search).get('next') || '/';
-      location.href = next;
-    } catch (err) {
-      console.error('Network Error:', err);
-      showMsg('Erro de rede. Verifique sua conexão ou tente novamente.', 'err');
-    } finally {
-      btn.disabled = false; btn.textContent = old;
-    }
-  }
+    });
 
-  async function resetPwd(e) {
-    e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    if (!email) { showMsg('Informe o e-mail para recuperar a senha.', 'err'); return; }
-    try {
-      const redirectTo = `${location.origin}/login.html`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-      if (error) return showMsg(error.message, 'err');
-      showMsg('Enviamos um link para redefinir sua senha.', 'ok');
-    } catch (err) {
-      console.error(err);
-      showMsg('Não foi possível enviar o e-mail de recuperação.', 'err');
-    }
-  }
+    async function doLogin(e) {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const email = form.email.value.trim();
+      const password = form.senha.value;
 
-  window.addEventListener('DOMContentLoaded', () => {
-    document.querySelector('#formLogin')?.addEventListener('submit', doLogin);
-    document.querySelector('#link-reset')?.addEventListener('click', resetPwd);
-  });
-</script>
+      if (!email || !password) { showMsg('Preencha e-mail e senha.', 'err'); return; }
+
+      const btn = document.getElementById('btn-login');
+      const old = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Entrando…';
+
+      try {
+        console.log('Attempting login with:', { email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          showMsg(error.message || 'Erro ao autenticar.', 'err');
+          console.error('Login error:', error);
+          return;
+        }
+        // Redirecionar para index.html após login bem-sucedido
+        location.href = '/index.html';
+      } catch (err) {
+        console.error('Network Error:', err);
+        showMsg('Erro de rede. Verifique sua conexão ou tente novamente.', 'err');
+      } finally {
+        btn.disabled = false; btn.textContent = old;
+      }
+    }
+
+    async function resetPwd(e) {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      if (!email) { showMsg('Informe o e-mail para recuperar a senha.', 'err'); return; }
+      try {
+        const redirectTo = `${location.origin}/login.html`;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) return showMsg(error.message, 'err');
+        showMsg('Enviamos um link para redefinir sua senha.', 'ok');
+      } catch (err) {
+        console.error(err);
+        showMsg('Não foi possível enviar o e-mail de recuperação.', 'err');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('#formLogin')?.addEventListener('submit', doLogin);
+      document.querySelector('#link-reset')?.addEventListener('click', resetPwd);
+    });
   </script>
 </body>
 </html>
