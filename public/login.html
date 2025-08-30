@@ -7,24 +7,47 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>.bg-grid{background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.15) 1px, transparent 0);background-size:22px 22px}</style>
   <script type="module">
-  iimport { supabase } from "./assets/auth.js";
-import { toast } from "./assets/app.js";
+  import { supabase } from "./assets/auth.js";
+  import { toast } from "./assets/app.js";
 
-async function doLogin(e){
-  e.preventDefault();
-  try {
+  async function doLogin(e){
+    e.preventDefault();
     const email = e.target.email.value.trim();
-    const senha = e.target.senha.value;
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-    if (error) { toast(error.message || 'Erro ao entrar','err'); return; }
-    const next = new URLSearchParams(location.search).get('next') || '/';
-    location.href = next;
-  } catch (err) {
-    console.error(err);
-    toast(err?.message || 'Falha de rede/CORS', 'err');
+    const password = e.target.senha.value;
+
+    try {
+      const r = await fetch('/api/auth-proxy/login', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await r.json().catch(()=> ({}));
+
+      if (!r.ok) {
+        toast(data?.error_description || data?.msg || 'Falha de login','err');
+        return;
+      }
+
+      // data tem access_token e refresh_token — aplica no supabase-js
+      await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token
+      });
+
+      const next = new URLSearchParams(location.search).get('next') || '/';
+      location.href = next;
+    } catch (err) {
+      console.error(err);
+      toast('Rede/Proxy indisponível', 'err');
+    }
   }
-}
-document.querySelector('#formLogin').addEventListener('submit', doLogin);
+
+  window.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('#formLogin').addEventListener('submit', doLogin);
+  });
+</script>
+
 </script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-violet-600 via-indigo-600 to-sky-600 text-white">
