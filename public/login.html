@@ -56,63 +56,104 @@
   </main>
 
   <!-- Lógica -->
-<script type="module">
-  import { supabase } from "./assets/auth.js";
-  import { toast } from "./assets/app.js";
+  <script type="module">
+    import { supabase } from "./assets/auth.js";
+    import { toast } from "./assets/app.js";
 
-  async function doLogin(e){
-    e.preventDefault();
-    const form = e.currentTarget;
-    const btn  = document.getElementById('btn-login');
-    const email = form.email.value.trim();
-    const password = form.senha.value;
-
-    if(!email || !password){ toast('Preencha e-mail e senha.','err'); return; }
-
-    btn.disabled = true; const old = btn.textContent; btn.textContent = 'Entrando…';
-
-    try {
-      const r = await fetch('/api/auth-proxy/login', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ email, password })
-      });
-
-      const raw = await r.text();
-      let data; try { data = JSON.parse(raw); } catch { data = null; }
-
-      if (!r.ok) {
-        const msg = data?.error_description || data?.error || data?.message || raw || 'Falha de login';
-        console.error('LOGIN ERROR', {status: r.status, raw});
-        toast(`${msg} (status ${r.status})`,'err');
-        return;
+    // Se já estiver logado, redireciona direto
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const next = new URLSearchParams(location.search).get('next') || '/';
+        location.replace(next);
       }
+    })();
 
-      if (!data?.access_token || !data?.refresh_token) {
-        console.error('LOGIN: resposta inesperada', raw);
-        toast('Resposta inesperada do servidor.','err');
-        return;
-      }
-
-      await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token
+    // Mostrar / ocultar senha (o que faltava no seu arquivo)
+    function bindTogglePassword() {
+      const input = document.getElementById('senha');
+      const btn = document.getElementById('btn-toggle');
+      if (!input || !btn) return;
+      btn.addEventListener('click', () => {
+        input.type = input.type === 'password' ? 'text' : 'password';
+        // feedback visual opcional
+        btn.textContent = input.type === 'password' ? '👁️' : '🙈';
       });
-
-      const next = new URLSearchParams(location.search).get('next') || '/';
-      location.href = next;
-
-    } catch (err) {
-      console.error(err);
-      toast('Rede/Proxy indisponível', 'err');
-    } finally {
-      btn.disabled = false; btn.textContent = old;
     }
-  }
 
-  window.addEventListener('DOMContentLoaded', () => {
-    document.querySelector('#formLogin').addEventListener('submit', doLogin);
-  });
-</script>
+    async function doLogin(e){
+      e.preventDefault();
+      const form = e.currentTarget;
+      const btn  = document.getElementById('btn-login');
+      const email = form.email.value.trim();
+      const password = form.senha.value;
+
+      if(!email || !password){ toast('Preencha e-mail e senha.','err'); return; }
+
+      btn.disabled = true; const old = btn.textContent; btn.textContent = 'Entrando…';
+
+      try {
+        const r = await fetch('/api/auth-proxy/login', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ email, password })
+        });
+
+        const raw = await r.text();
+        let data; try { data = JSON.parse(raw); } catch { data = null; }
+
+        if (!r.ok) {
+          const msg = data?.error_description || data?.error || data?.message || raw || 'Falha de login';
+          console.error('LOGIN ERROR', {status: r.status, raw});
+          toast(`${msg} (status ${r.status})`,'err');
+          return;
+        }
+
+        if (!data?.access_token || !data?.refresh_token) {
+          console.error('LOGIN: resposta inesperada', raw);
+          toast('Resposta inesperada do servidor.','err');
+          return;
+        }
+
+        await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token
+        });
+
+        const next = new URLSearchParams(location.search).get('next') || '/';
+        location.href = next;
+
+      } catch (err) {
+        console.error(err);
+        toast('Rede/Proxy indisponível', 'err');
+      } finally {
+        btn.disabled = false; btn.textContent = old;
+      }
+    }
+
+    // Reset de senha (opcional) — precisa do Auth URL correto no Supabase
+    async function handleReset(e){
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      if(!email){ toast('Digite seu e-mail primeiro.','err'); return; }
+      try{
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: location.origin + '/login.html'
+        });
+        if (error) throw error;
+        toast('Se o e-mail existir, enviaremos instruções.','ok');
+      }catch(err){
+        console.error(err);
+        toast('Não foi possível enviar o e-mail agora.','err');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('#formLogin').addEventListener('submit', doLogin);
+      document.querySelector('#link-reset').addEventListener('click', handleReset);
+      bindTogglePassword(); // <- garante o “👁️” funcionando
+      document.getElementById('email')?.focus();
+    });
+  </script>
 </body>
 </html>
