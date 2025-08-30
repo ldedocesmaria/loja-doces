@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Produtos — Loja Doces</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import { API, toast, money, debounce } from "./assets/app.js";
+    <script type="module">
+  import { requireAuth, getUser, signOut, supabase } from "./assets/auth.js";
+  await requireAuth();
+  const { data: { session } } = await supabase.auth.getSession();
+  window.SESSION = session;
+  window.addEventListener("DOMContentLoaded", async ()=>{
+    const user = await getUser(); if(user) document.querySelector("#user-email").textContent = user.email;
+    const btn = document.querySelector("#btn-logout"); if(btn) btn.onclick = signOut;
+  });
+</script>
+
+    window.addEventListener('DOMContentLoaded', ()=>{
+      document.querySelector('#form').addEventListener('submit', salvar);
+      document.querySelector('#busca').addEventListener('input', debounce((e)=> carregar(e.target.value), 300));
+      carregar();
+    });
+    async function carregar(search=''){
+      const data = await API.get('produtos', { search, limit: 100 }, window.SESSION?.access_token);
+      const tbody = document.querySelector('#grid tbody'); tbody.innerHTML='';
+      (data||[]).forEach(p=>{
+        const tr=document.createElement('tr'); tr.className='border-b last:border-0';
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-mono text-xs text-slate-500">$${p.codigo}</td>
+          <td class="py-2 px-3">$${p.descricao}</td>
+          <td class="py-2 px-3">$${p.unidade||'UN'}</td>
+          <td class="py-2 px-3 text-right">$${money(p.preco_venda)}</td>`;
+        tbody.appendChild(tr);
+      });
+      document.querySelector('#count').textContent = (data||[]).length;
+    }
+    async function salvar(e){
+      e.preventDefault();
+      const f = e.target;
+      const payload = {
+        codigo: f.codigo.value.trim(),
+        descricao: f.descricao.value.trim(),
+        unidade: f.unidade.value || 'UN',
+        preco_venda: Number(f.preco_venda.value.replace(',','.'))||0
+      };
+      if(!payload.codigo||!payload.descricao){ toast('Código e descrição são obrigatórios','err'); return; }
+      await API.post('produtos', payload, window.SESSION?.access_token);
+      toast('Produto salvo!'); f.reset(); f.codigo.focus(); carregar(document.querySelector('#busca').value);
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+  <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+    <a href="/" class="font-semibold">🍬 Loja Doces</a>
+    <nav class="flex items-center gap-3 text-sm">
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/produtos.html">Produtos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/vendas.html">Vendas</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/recebimentos.html">Recebimentos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/relatorios.html">Relatórios</a>
+      <span id="user-email" class="text-slate-500"></span>
+      <button id="btn-logout" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
+    </nav>
+  </div>
+</header>
+
+  <main class="mx-auto max-w-6xl px-4 py-6 grid lg:grid-cols-3 gap-6">
+    <section class="lg:col-span-1">
+      <div class="bg-white border rounded-2xl p-5 shadow-sm">
+        <h2 class="font-medium mb-4">Novo Produto</h2>
+        <form id="form" class="grid gap-3">
+          <div><label class="text-sm text-slate-500">Código</label><input name="codigo" class="w-full mt-1 px-3 py-2 border rounded-xl" required></div>
+          <div><label class="text-sm text-slate-500">Descrição</label><input name="descricao" class="w-full mt-1 px-3 py-2 border rounded-xl" required></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="text-sm text-slate-500">Unidade</label><input name="unidade" value="UN" class="w-full mt-1 px-3 py-2 border rounded-xl"></div>
+            <div><label class="text-sm text-slate-500">Preço venda</label><input name="preco_venda" inputmode="decimal" placeholder="0,00" class="w-full mt-1 px-3 py-2 border rounded-xl"></div>
+          </div>
+          <button class="mt-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2">Salvar</button>
+        </form>
+      </div>
+    </section>
+    <section class="lg:col-span-2">
+      <div class="bg-white border rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-medium">Produtos <span class="text-slate-400 text-sm" id="count">0</span></h2>
+          <input id="busca" placeholder="Buscar por código ou descrição..." class="px-3 py-2 border rounded-xl w-64">
+        </div>
+        <div class="overflow-auto">
+          <table id="grid" class="w-full text-sm">
+            <thead class="text-left text-slate-500">
+              <tr><th class="py-2 px-3 font-normal">Código</th><th class="py-2 px-3 font-normal">Descrição</th><th class="py-2 px-3 font-normal">Un.</th><th class="py-2 px-3 font-normal text-right">Preço</th></tr>
+            </thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

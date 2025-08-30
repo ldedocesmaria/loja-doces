@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Entrar — Loja Doces</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .bg-grid { background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.15) 1px, transparent 0); background-size: 22px 22px; }
+  </style>
+  <script type="module">
+    import { supabase } from "./assets/auth.js";
+    import { toast } from "./assets/app.js";
+
+    async function doLogin(e){
+      e.preventDefault();
+      const email = e.target.email.value.trim();
+      const senha = e.target.senha.value;
+      const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+      if(error){ toast(error.message,'err'); return; }
+      const next = new URLSearchParams(location.search).get("next") || "/";
+      location.href = next;
+    }
+    async function resetPass(){
+      const email = document.querySelector('input[name=email]').value.trim();
+      if(!email){ toast('Digite seu e-mail para recuperar a senha','err'); return; }
+      const { error } = await supabase.auth.resetPasswordForEmail(email,{ redirectTo: location.origin + "/login.html" });
+      if(error){ toast(error.message,'err'); return; }
+      toast('Se existir conta, enviamos um e-mail para redefinir a senha.');
+    }
+    window.addEventListener('DOMContentLoaded',()=>{
+      document.querySelector('#formLogin').addEventListener('submit', doLogin);
+      document.querySelector('#link-reset').addEventListener('click', (e)=>{ e.preventDefault(); resetPass(); });
+    });
+  </script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-violet-600 via-indigo-600 to-sky-600 text-white">
+  <div class="absolute inset-0 bg-grid opacity-40"></div>
+  <main class="relative min-h-screen grid place-items-center p-4">
+    <div class="w-full max-w-md backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-2xl bg-white/20 grid place-items-center text-xl">🍬</div>
+        <div><div class="font-semibold">Loja Doces</div><div class="text-white/70 text-sm">Acesso restrito</div></div>
+      </div>
+      <form id="formLogin" class="grid gap-3">
+        <div><label class="text-sm text-white/80">E-mail</label><input name="email" type="email" required class="w-full mt-1 px-3 py-2 rounded-xl bg-white/90 text-slate-800 outline-none focus:ring-4 focus:ring-white/40"></div>
+        <div><label class="text-sm text-white/80">Senha</label><input name="senha" type="password" required class="w-full mt-1 px-3 py-2 rounded-xl bg-white/90 text-slate-800 outline-none focus:ring-4 focus:ring-white/40"></div>
+        <button class="mt-2 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-medium">Entrar</button>
+      </form>
+      <div class="flex items-center justify-between mt-3 text-sm">
+        <a id="link-reset" href="#" class="text-white/80 hover:text-white">Esqueci minha senha</a>
+        <span class="text-white/50">v1.0</span>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

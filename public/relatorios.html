@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Relatórios — Loja Doces</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import { API, money } from "./assets/app.js";
+    <script type="module">
+  import { requireAuth, getUser, signOut, supabase } from "./assets/auth.js";
+  await requireAuth();
+  const { data: { session } } = await supabase.auth.getSession();
+  window.SESSION = session;
+  window.addEventListener("DOMContentLoaded", async ()=>{
+    const user = await getUser(); if(user) document.querySelector("#user-email").textContent = user.email;
+    const btn = document.querySelector("#btn-logout"); if(btn) btn.onclick = signOut;
+  });
+</script>
+
+    async function contaCorrente(){ const cliente=document.querySelector('#cc_cliente').value.trim(); const de=document.querySelector('#cc_de').value; const ate=document.querySelector('#cc_ate').value;
+      const data=await API.get('relatorios/conta-corrente', { cliente, de, ate }, window.SESSION?.access_token);
+      const tbody=document.querySelector('#cc_grid tbody'); tbody.innerHTML=''; (data.movimentos||[]).forEach(m=>{ const tr=document.createElement('tr'); tr.className='border-b last:border-0';
+        tr.innerHTML=`<td class="py-2 px-3">${new Date(m.data).toLocaleDateString('pt-BR')}</td><td class="py-2 px-3">${m.tipo}</td><td class="py-2 px-3">${m.doc||''}</td><td class="py-2 px-3">${m.descricao||''}</td><td class="py-2 px-3 text-right">${money(m.valor)}</td>`; tbody.appendChild(tr); });
+      document.querySelector('#cc_saldo').textContent=money(data.saldo||0);
+    }
+    async function compComprasVendas(){ const de=document.querySelector('#cv_de').value; const ate=document.querySelector('#cv_ate').value;
+      const data=await API.get('relatorios/compras-vendas', { de, ate }, window.SESSION?.access_token);
+      document.querySelector('#cv_compras').textContent=money(data.compras||0);
+      document.querySelector('#cv_vendas').textContent=money(data.vendas||0);
+      document.querySelector('#cv_margem').textContent=money(data.margem||0);
+    }
+    window.addEventListener('DOMContentLoaded',()=>{ document.querySelector('#cc_run').onclick=contaCorrente; document.querySelector('#cv_run').onclick=compComprasVendas; });
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+  <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+    <a href="/" class="font-semibold">🍬 Loja Doces</a>
+    <nav class="flex items-center gap-3 text-sm">
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/produtos.html">Produtos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/vendas.html">Vendas</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/recebimentos.html">Recebimentos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/relatorios.html">Relatórios</a>
+      <span id="user-email" class="text-slate-500"></span>
+      <button id="btn-logout" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
+    </nav>
+  </div>
+</header>
+
+  <main class="mx-auto max-w-6xl px-4 py-6 grid gap-6">
+    <section class="bg-white border rounded-2xl p-5 shadow-sm">
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="grow"><label class="text-sm text-slate-500">Cliente</label><input id="cc_cliente" placeholder="Nome/ID do cliente" class="w-full px-3 py-2 border rounded-xl"></div>
+        <div><label class="text-sm text-slate-500">De</label><input id="cc_de" type="date" class="w-full px-3 py-2 border rounded-xl"></div>
+        <div><label class="text-sm text-slate-500">Até</label><input id="cc_ate" type="date" class="w-full px-3 py-2 border rounded-xl"></div>
+        <button id="cc_run" class="self-end bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2">Gerar</button>
+      </div>
+      <div class="mt-4 overflow-auto">
+        <table id="cc_grid" class="w-full text-sm">
+          <thead class="text-left text-slate-500"><tr><th class="py-2 px-3 font-normal">Data</th><th class="py-2 px-3 font-normal">Tipo</th><th class="py-2 px-3 font-normal">Doc</th><th class="py-2 px-3 font-normal">Descrição</th><th class="py-2 px-3 font-normal text-right">Valor</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="mt-4 text-right text-lg">Saldo: <span id="cc_saldo" class="font-semibold">R$ 0,00</span></div>
+    </section>
+    <section class="bg-white border rounded-2xl p-5 shadow-sm">
+      <div class="flex items-center gap-3 flex-wrap">
+        <div><label class="text-sm text-slate-500">De</label><input id="cv_de" type="date" class="w-full px-3 py-2 border rounded-xl"></div>
+        <div><label class="text-sm text-slate-500">Até</label><input id="cv_ate" type="date" class="w-full px-3 py-2 border rounded-xl"></div>
+        <button id="cv_run" class="self-end bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-2">Gerar</button>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-4 mt-4">
+        <div class="rounded-2xl border p-4"><div class="text-slate-500 text-sm">Compras</div><div id="cv_compras" class="text-2xl font-semibold">R$ 0,00</div></div>
+        <div class="rounded-2xl border p-4"><div class="text-slate-500 text-sm">Vendas</div><div id="cv_vendas" class="text-2xl font-semibold">R$ 0,00</div></div>
+        <div class="rounded-2xl border p-4"><div class="text-slate-500 text-sm">Margem</div><div id="cv_margem" class="text-2xl font-semibold">R$ 0,00</div></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

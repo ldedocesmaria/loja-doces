@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Vendas (PDV) — Loja Doces</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>.suggest{position:absolute;z-index:20;}</style>
+  <script type="module">
+    import { API, toast, money, debounce } from "./assets/app.js";
+    <script type="module">
+  import { requireAuth, getUser, signOut, supabase } from "./assets/auth.js";
+  await requireAuth();
+  const { data: { session } } = await supabase.auth.getSession();
+  window.SESSION = session;
+  window.addEventListener("DOMContentLoaded", async ()=>{
+    const user = await getUser(); if(user) document.querySelector("#user-email").textContent = user.email;
+    const btn = document.querySelector("#btn-logout"); if(btn) btn.onclick = signOut;
+  });
+</script>
+
+    let carrinho=[];
+    async function searchProdutos(q){ if(!q||q.length<1) return []; return await API.get('produtos', { search:q, limit:10 }, window.SESSION?.access_token); }
+    function renderCarrinho(){ const tbody=document.querySelector('#cart tbody'); tbody.innerHTML=''; let total=0;
+      carrinho.forEach((it,idx)=>{ const sub=(Number(it.qtd)||0)*(Number(it.preco_venda)||0); total+=sub;
+        const tr=document.createElement('tr'); tr.className='border-b last:border-0';
+        tr.innerHTML=`<td class="py-2 px-3">$${it.codigo}</td><td class="py-2 px-3">$${it.descricao}</td>
+          <td class="py-2 px-3 w-24"><input data-i="$${idx}" class="w-20 px-2 py-1 border rounded-lg text-right qtd" value="$${it.qtd}"></td>
+          <td class="py-2 px-3 text-right">$${money(it.preco_venda)}</td><td class="py-2 px-3 text-right">$${money(sub)}</td>
+          <td class="py-2 px-3 text-right"><button data-i="$${idx}" class="rm text-rose-600">✕</button></td>`;
+        tbody.appendChild(tr);
+      });
+      document.querySelector('#total').textContent=money(total);
+      tbody.querySelectorAll('.rm').forEach(b=> b.onclick=(e)=>{ carrinho.splice(+e.target.dataset.i,1); renderCarrinho(); });
+      tbody.querySelectorAll('.qtd').forEach(inp=> inp.onchange=(e)=>{ const i=+e.target.dataset.i; carrinho[i].qtd=Number(e.target.value)||1; renderCarrinho(); });
+    }
+    function addItem(p){ const j=carrinho.findIndex(x=>x.produto_id===p.id); if(j>=0){ carrinho[j].qtd+=1; } else { carrinho.push({ produto_id:p.id, codigo:p.codigo, descricao:p.descricao, qtd:1, preco_venda:Number(p.preco_venda)||0 }); } renderCarrinho(); }
+    async function efetuarVenda(){ if(carrinho.length===0){ toast('Carrinho vazio','err'); return; } const cliente_id=document.querySelector('#cliente_id').value||null; const itens=carrinho.map(it=>({ produto_id:it.produto_id, qtd:it.qtd, preco_venda:it.preco_venda }));
+      const r = await API.post('vendas', { cliente_id, itens }, window.SESSION?.access_token);
+      toast(`Venda ${r.venda_id} registrada! Total ${money(r.total)}`); carrinho=[]; renderCarrinho(); }
+    function setupAutocomplete(){ const box=document.querySelector('#produto'); const wrap=document.querySelector('#suggest'); const list=document.querySelector('#suggest ul');
+      const update=debounce(async()=>{ const q=box.value.trim(); const arr=await searchProdutos(q); list.innerHTML=''; if(!arr.length){ wrap.classList.add('hidden'); return; }
+        arr.forEach(p=>{ const li=document.createElement('li'); li.className='px-3 py-2 hover:bg-slate-100 cursor-pointer'; li.textContent=`$${p.codigo} — $${p.descricao}`; li.onclick=()=>{ addItem(p); box.value=''; wrap.classList.add('hidden'); }; list.appendChild(li); });
+        wrap.classList.remove('hidden');
+      },200);
+      box.addEventListener('input', update); box.addEventListener('blur', ()=> setTimeout(()=> wrap.classList.add('hidden'), 150));
+    }
+    window.addEventListener('DOMContentLoaded',()=>{ setupAutocomplete(); document.querySelector('#btn-vender').addEventListener('click', efetuarVenda); });
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+  <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+    <a href="/" class="font-semibold">🍬 Loja Doces</a>
+    <nav class="flex items-center gap-3 text-sm">
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/produtos.html">Produtos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/vendas.html">Vendas</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/recebimentos.html">Recebimentos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/relatorios.html">Relatórios</a>
+      <span id="user-email" class="text-slate-500"></span>
+      <button id="btn-logout" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
+    </nav>
+  </div>
+</header>
+
+  <main class="mx-auto max-w-6xl px-4 py-6 grid lg:grid-cols-3 gap-6">
+    <section class="lg:col-span-1">
+      <div class="bg-white border rounded-2xl p-5 shadow-sm relative">
+        <h2 class="font-medium mb-4">Adicionar produto</h2>
+        <div class="relative">
+          <input id="produto" placeholder="Digite código ou descrição..." class="w-full px-3 py-2 border rounded-xl outline-none focus:ring">
+          <div id="suggest" class="suggest hidden mt-1 w-full bg-white border rounded-xl shadow"><ul class="max-h-64 overflow-auto"></ul></div>
+        </div>
+        <div class="mt-6">
+          <label class="text-sm text-slate-500">Cliente (opcional)</label>
+          <input id="cliente_id" placeholder="ID do cliente (futuro autocomplete)" class="w-full mt-1 px-3 py-2 border rounded-xl">
+        </div>
+      </div>
+    </section>
+    <section class="lg:col-span-2">
+      <div class="bg-white border rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3"><h2 class="font-medium">Carrinho</h2><div class="text-lg font-semibold">Total: <span id="total">R$ 0,00</span></div></div>
+        <div class="overflow-auto">
+          <table id="cart" class="w-full text-sm">
+            <thead class="text-left text-slate-500"><tr><th class="py-2 px-3 font-normal">Código</th><th class="py-2 px-3 font-normal">Produto</th><th class="py-2 px-3 font-normal">Qtd</th><th class="py-2 px-3 font-normal text-right">Preço</th><th class="py-2 px-3 font-normal text-right">Subtotal</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="mt-4 text-right">
+          <button id="btn-vender" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-4 py-2">Efetuar venda</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

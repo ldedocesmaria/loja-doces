@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Loja Doces — Painel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+  import { requireAuth, getUser, signOut, supabase } from "./assets/auth.js";
+  await requireAuth();
+  const { data: { session } } = await supabase.auth.getSession();
+  window.SESSION = session;
+  window.addEventListener("DOMContentLoaded", async ()=>{
+    const user = await getUser(); if(user) document.querySelector("#user-email").textContent = user.email;
+    const btn = document.querySelector("#btn-logout"); if(btn) btn.onclick = signOut;
+  });
+</script>
+
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+  <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+    <a href="/" class="font-semibold">🍬 Loja Doces</a>
+    <nav class="flex items-center gap-3 text-sm">
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/produtos.html">Produtos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/vendas.html">Vendas</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/recebimentos.html">Recebimentos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/relatorios.html">Relatórios</a>
+      <span id="user-email" class="text-slate-500"></span>
+      <button id="btn-logout" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
+    </nav>
+  </div>
+</header>
+
+  <main class="mx-auto max-w-6xl px-4 py-8">
+    <div class="mb-6">
+      <h2 class="text-2xl font-semibold">Bem-vindo(a) 👋</h2>
+      <p class="text-slate-500">Escolha uma área para começar.</p>
+    </div>
+    <section class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <a href="/produtos.html" class="group rounded-2xl border p-5 bg-white hover:shadow-md transition">
+        <div class="text-lg font-medium mb-1">Produtos</div>
+        <p class="text-sm text-slate-500">Cadastro e consulta rápida.</p>
+      </a>
+      <a href="/vendas.html" class="group rounded-2xl border p-5 bg-white hover:shadow-md transition">
+        <div class="text-lg font-medium mb-1">Vendas (PDV)</div>
+        <p class="text-sm text-slate-500">Carrinho moderno e responsivo.</p>
+      </a>
+      <a href="/recebimentos.html" class="group rounded-2xl border p-5 bg-white hover:shadow-md transition">
+        <div class="text-lg font-medium mb-1">Recebimentos</div>
+        <p class="text-sm text-slate-500">Buscar e receber por cliente.</p>
+      </a>
+      <a href="/relatorios.html" class="group rounded-2xl border p-5 bg-white hover:shadow-md transition">
+        <div class="text-lg font-medium mb-1">Relatórios</div>
+        <p class="text-sm text-slate-500">Conta corrente e margem.</p>
+      </a>
+    </section>
+  </main>
+</body>
+</html>
