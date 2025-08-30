@@ -2,18 +2,13 @@
   "name": "loja-doces",
   "private": true,
   "type": "module",
+  "version": "1.0.0",
   "scripts": {
     "dev": "vercel dev",
-    "start": "vercel dev",
     "migrate": "echo 'Execute as migrations no Supabase SQL editor ou via CLI'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4"
   },
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "keywords": [],
-  "author": "",
   "license": "ISC"
 }
