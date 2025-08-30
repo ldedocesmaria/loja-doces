@@ -1,129 +1,132 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Entrar — Doces da Maria</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Entrar — SGV PDV</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body{background:linear-gradient(135deg,#4f46e5 0%,#06b6d4 100%)}
-    .glass{background:rgba(255,255,255,.12);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.25)}
-    .focus-ring:focus{box-shadow:0 0 8px rgba(99,102,241,.55);border-color:#6366f1;outline:none}
+    .bg-grid{background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.15) 1px,transparent 0);background-size:22px 22px}
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 text-white">
-  <main class="w-full max-w-md glass rounded-2xl shadow-2xl p-8">
-    <header class="flex items-center gap-3 mb-6">
-      <div class="w-10 h-10 rounded-xl bg-white/20 grid place-items-center text-xl">🍬</div>
-      <div>
-        <div class="font-semibold text-lg">Doces da Maria</div>
-        <div class="text-white/70 text-sm">Acesso restrito</div>
-      </div>
-    </header>
+<body class="min-h-screen bg-gradient-to-br from-violet-600 via-indigo-600 to-sky-600 text-white">
+  <div class="absolute inset-0 bg-grid opacity-40"></div>
 
-    <form id="loginForm" class="space-y-5" novalidate>
-      <div>
-        <label for="email" class="block text-sm text-white/80">E-mail</label>
-        <input id="email" type="email" autocomplete="username" required
-               class="w-full mt-1 p-3 bg-white/90 text-slate-900 rounded-lg focus-ring">
-      </div>
-      <div>
-        <label for="password" class="block text-sm text-white/80">Senha</label>
-        <div class="relative mt-1">
-          <input id="password" type="password" autocomplete="current-password" required
-                 class="w-full p-3 pr-12 bg-white/90 text-slate-900 rounded-lg focus-ring">
-          <button type="button" id="toggle" class="absolute inset-y-0 right-2 my-auto px-2 rounded text-slate-700/70 hover:text-slate-900">👁️</button>
+  <main class="relative min-h-screen grid place-items-center p-4">
+    <div class="w-full max-w-md backdrop-blur-xl bg-white/10 border border-white/20 rounded-3xl shadow-2xl p-6">
+      <!-- Cabeçalho -->
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-2xl bg-white/20 grid place-items-center text-xl">🍬</div>
+        <div>
+          <div class="font-semibold">Doces da Maria</div>
+          <div class="text-white/70 text-sm">Acesso restrito</div>
         </div>
       </div>
-      <button id="btn" type="submit"
-              class="w-full bg-white text-slate-900 py-3 rounded-lg font-medium hover:bg-slate-100 transition disabled:opacity-70">
-        Entrar
-      </button>
-    </form>
 
-    <div class="flex items-center justify-between mt-4 text-sm">
-      <a id="reset" href="#" class="text-white/80 hover:text-white">Esqueci minha senha</a>
-      <span class="text-white/50">v1.0</span>
+      <!-- Formulário -->
+      <form id="formLogin" class="grid gap-3" novalidate>
+        <div>
+          <label for="email" class="text-sm text-white/80">E-mail</label>
+          <input id="email" name="email" type="email" inputmode="email" autocomplete="username" required
+                 class="w-full mt-1 px-3 py-2 rounded-xl bg-white/90 text-slate-800 outline-none focus:ring-4 focus:ring-white/40">
+        </div>
+
+        <div>
+          <label for="senha" class="text-sm text-white/80">Senha</label>
+          <div class="relative mt-1">
+            <input id="senha" name="senha" type="password" autocomplete="current-password" required
+                   class="w-full px-3 py-2 rounded-xl bg-white/90 text-slate-800 outline-none focus:ring-4 focus:ring-white/40 pr-12">
+            <button type="button" id="btn-toggle"
+                    class="absolute inset-y-0 right-2 my-auto px-2 rounded-md text-slate-700/70 hover:text-slate-900 focus:outline-none"
+                    title="Mostrar/ocultar senha">👁️</button>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-login"
+                class="mt-2 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 font-medium disabled:opacity-70 disabled:cursor-not-allowed">
+          Entrar
+        </button>
+      </form>
+
+      <div class="flex items-center justify-between mt-3 text-sm">
+        <a id="link-reset" href="#" class="text-white/80 hover:text-white">Esqueci minha senha</a>
+        <span class="text-white/50">v1.0</span>
+      </div>
+
+      <!-- área de mensagens simples (fallback caso não use toast do app.js) -->
+      <div id="msg" class="mt-3 hidden text-center text-sm"></div>
     </div>
-
-    <div id="msg" class="mt-4 hidden text-center text-sm"></div>
   </main>
 
-  <!-- Supabase v2 (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Lógica -->
   <script type="module">
-    import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./assets/env.js";
+    import { supabase } from "./assets/auth.js";
+    import { toast } from "./assets/app.js";
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, detectSessionInUrl: true }
-    });
-
-    const $ = s => document.querySelector(s);
-    const msg = (ok, text)=>{
-      const el = $('#msg');
+    const showMsg = (text, type='err') => {
+      // usa toast do seu app se existir; senão, fallback simples
+      if (typeof toast === 'function') return toast(text, type);
+      const el = document.getElementById('msg');
       el.textContent = text;
-      el.className = `mt-4 text-center text-sm px-3 py-2 rounded ${ok?'bg-emerald-500/90':'bg-rose-500/90'}`;
+      el.className = `mt-3 text-center text-sm ${type==='err' ? 'text-red-200' : 'text-emerald-200'}`;
       el.classList.remove('hidden');
-      setTimeout(()=> el.classList.add('hidden'), 3500);
+      setTimeout(()=>{ el.classList.add('hidden'); }, 3500);
     };
 
-    $('#toggle').addEventListener('click', ()=>{
-      const i = $('#password');
-      i.type = i.type === 'password' ? 'text' : 'password';
+    // Mostrar/ocultar senha
+    document.addEventListener('click', (e)=>{
+      if (e.target?.id === 'btn-toggle') {
+        const inp = document.getElementById('senha');
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+      }
     });
 
-    $('#reset').addEventListener('click', async (e)=>{
+    async function doLogin(e){
       e.preventDefault();
-      const email = prompt('Informe seu e-mail para receber o link:');
-      if(!email) return;
-      try{
-        const redirectTo = `${location.origin}/login.html`;
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-        if (error) throw error;
-        msg(true,'Enviamos um e-mail com instruções.');
-      }catch(err){ msg(false, err.message || 'Falha ao solicitar redefinição.'); }
-    });
+      const form = e.currentTarget;
+      const email = form.email.value.trim();
+      const password = form.senha.value;
 
-    $('#loginForm').addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const btn = $('#btn');
-      btn.disabled = true; const old = btn.textContent; btn.textContent = 'Entrando…';
+      if(!email || !password){ showMsg('Preencha e-mail e senha.','err'); return; }
 
-      const email = $('#email').value.trim();
-      const password = $('#password').value;
-      if(!email || !password){ msg(false,'Preencha e-mail e senha.'); btn.disabled=false; btn.textContent=old; return; }
+      const btn = document.getElementById('btn-login');
+      const old = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Entrando…';
 
-      try{
-        let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      try {
+        // LOGIN DIRETO VIA SDK (sem proxy)
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) { showMsg(error.message, 'err'); return; }
 
-        if (error && (error.name === 'TypeError' || /fetch/i.test(error.message))) {
-          const r = await fetch('/api/auth-proxy/login', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ email, password })
-          });
-          const raw = await r.text(); let json = null; try{ json = JSON.parse(raw); }catch{}
-          if(!r.ok) throw new Error(json?.error_description || raw || 'Falha no proxy');
-          await supabase.auth.setSession({
-            access_token: json.access_token,
-            refresh_token: json.refresh_token
-          });
-          data = { session: true }; error = null;
-        }
-
-        if (error) throw error;
-        if (!data?.session) throw new Error('Sessão inválida.');
-
-        msg(true,'Login realizado!');
         const next = new URLSearchParams(location.search).get('next') || '/';
-        setTimeout(()=> location.href = next, 700);
-
-      }catch(err){
+        location.href = next;
+      } catch (err) {
         console.error(err);
-        msg(false, err.message || 'Falha de login');
-      }finally{
+        showMsg('Falha de rede ao autenticar.','err');
+      } finally {
         btn.disabled = false; btn.textContent = old;
       }
+    }
+
+    // Esqueci minha senha (envia e-mail com link do Supabase)
+    async function resetPwd(e){
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      if(!email){ showMsg('Informe o e-mail para recuperar a senha.','err'); return; }
+      try {
+        const redirectTo = `${location.origin}/login.html`;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) return showMsg(error.message, 'err');
+        showMsg('Enviamos um link para redefinir sua senha.','ok');
+      } catch (err) {
+        console.error(err);
+        showMsg('Não foi possível enviar o e-mail de recuperação.','err');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('#formLogin')?.addEventListener('submit', doLogin);
+      document.querySelector('#link-reset')?.addEventListener('click', resetPwd);
     });
   </script>
 </body>
