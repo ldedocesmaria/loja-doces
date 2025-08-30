@@ -3,21 +3,11 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Produtos</title>
+  <title>Produtos — Loja Doces</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="./assets/guard.js"></script>
   <script type="module">
     import { API, toast, money, debounce } from "./assets/app.js";
-    <script type="module">
-  import { requireAuth, getUser, signOut, supabase } from "./assets/auth.js";
-  await requireAuth();
-  const { data: { session } } = await supabase.auth.getSession();
-  window.SESSION = session;
-  window.addEventListener("DOMContentLoaded", async ()=>{
-    const user = await getUser(); if(user) document.querySelector("#user-email").textContent = user.email;
-    const btn = document.querySelector("#btn-logout"); if(btn) btn.onclick = signOut;
-  });
-</script>
-
     window.addEventListener('DOMContentLoaded', ()=>{
       document.querySelector('#form').addEventListener('submit', salvar);
       document.querySelector('#busca').addEventListener('input', debounce((e)=> carregar(e.target.value), 300));
@@ -26,15 +16,15 @@
     async function carregar(search=''){
       const data = await API.get('produtos', { search, limit: 100 }, window.SESSION?.access_token);
       const tbody = document.querySelector('#grid tbody'); tbody.innerHTML='';
-      (data||[]).forEach(p=>{
-        const tr=document.createElement('tr'); tr.className='border-b last:border-0';
+      for (const p of (data || [])) {
+        const tr = document.createElement('tr'); tr.className='border-b last:border-0';
         tr.innerHTML = `
-          <td class="py-2 px-3 font-mono text-xs text-slate-500">$${p.codigo}</td>
-          <td class="py-2 px-3">$${p.descricao}</td>
-          <td class="py-2 px-3">$${p.unidade||'UN'}</td>
-          <td class="py-2 px-3 text-right">$${money(p.preco_venda)}</td>`;
+          <td class="py-2 px-3 font-mono text-xs text-slate-500">${p.codigo ?? ''}</td>
+          <td class="py-2 px-3">${p.descricao ?? ''}</td>
+          <td class="py-2 px-3">${p.unidade ?? 'UN'}</td>
+          <td class="py-2 px-3 text-right">${money(p.preco_venda)}</td>`;
         tbody.appendChild(tr);
-      });
+      }
       document.querySelector('#count').textContent = (data||[]).length;
     }
     async function salvar(e){
@@ -44,7 +34,7 @@
         codigo: f.codigo.value.trim(),
         descricao: f.descricao.value.trim(),
         unidade: f.unidade.value || 'UN',
-        preco_venda: Number(f.preco_venda.value.replace(',','.'))||0
+        preco_venda: Number((f.preco_venda.value||'').replace(',','.'))||0
       };
       if(!payload.codigo||!payload.descricao){ toast('Código e descrição são obrigatórios','err'); return; }
       await API.post('produtos', payload, window.SESSION?.access_token);
@@ -62,7 +52,7 @@
       <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/recebimentos.html">Recebimentos</a>
       <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/relatorios.html">Relatórios</a>
       <span id="user-email" class="text-slate-500"></span>
-      <button id="btn-logout" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
+      <button id="btn-logout" type="button" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
     </nav>
   </div>
 </header>

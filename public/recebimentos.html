@@ -3,31 +3,87 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Recebimentos</title>
+  <title>Recebimentos — Loja Doces</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="./assets/guard.js"></script>
   <script type="module">
     import { API, toast, money, debounce } from "./assets/app.js";
-    <script type="module">
-  import { requireAuth, getUser, signOut, supabase } from "./assets/auth.js";
-  await requireAuth();
-  const { data: { session } } = await supabase.auth.getSession();
-  window.SESSION = session;
-  window.addEventListener("DOMContentLoaded", async ()=>{
-    const user = await getUser(); if(user) document.querySelector("#user-email").textContent = user.email;
-    const btn = document.querySelector("#btn-logout"); if(btn) btn.onclick = signOut;
-  });
-</script>
-
-    let cliente=null, titulos=[], pixChaves=[];
-    async function carregarChavesPix(){ try{ pixChaves=await API.get('pix/chaves', {}, window.SESSION?.access_token); const sel=document.querySelector('#pix_chave'); sel.innerHTML=pixChaves.map(c=>`<option value="${c.id}">${c.apelido||c.chave}</option>`).join(''); }catch{} }
-    async function buscarCliente(q){ if(!q||q.length<2) return []; return await API.get('clientes', { search:q, limit:10 }, window.SESSION?.access_token); }
-    function autocompleteClientes(){ const box=document.querySelector('#cliente_busca'); const wrap=document.querySelector('#sugCli'); const ul=document.querySelector('#sugCli ul'); const update=debounce(async()=>{ const arr=await buscarCliente(box.value.trim()); ul.innerHTML=''; if(!arr.length){ wrap.classList.add('hidden'); return; } arr.forEach(c=>{ const li=document.createElement('li'); li.className='px-3 py-2 hover:bg-slate-100 cursor-pointer'; li.textContent=`$${c.nome} $${c.doc?`— ${c.doc}`:''}`; li.onclick=()=>{ selecionarCliente(c); wrap.classList.add('hidden'); box.value=''; }; ul.appendChild(li); }); wrap.classList.remove('hidden'); },250); box.addEventListener('input',update); box.addEventListener('blur',()=> setTimeout(()=>wrap.classList.add('hidden'),120)); }
-    async function selecionarCliente(c){ cliente=c; document.querySelector('#cliente_sel').textContent=c.nome; await carregarTitulos(); }
-    async function carregarTitulos(){ if(!cliente) return; titulos=await API.get('recebimentos/abertos', { cliente_id:cliente.id }, window.SESSION?.access_token); const tbody=document.querySelector('#grid tbody'); tbody.innerHTML=''; titulos.forEach(t=>{ const tr=document.createElement('tr'); tr.className='border-b last:border-0'; tr.innerHTML=`<td class="py-2 px-3">${new Date(t.data).toLocaleString('pt-BR')}</td><td class="py-2 px-3">${t.venda_id}</td><td class="py-2 px-3 text-right">${money(t.total)}</td><td class="py-2 px-3 text-right font-medium">${money(t.saldo)}</td><td class="py-2 px-3 text-right"><button class="px-3 py-1.5 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700" data-id="${t.id}" data-saldo="${t.saldo}">Receber</button></td>`; tbody.appendChild(tr); }); tbody.querySelectorAll('button').forEach(b=> b.onclick=()=> abrirModalReceber(b.dataset.id, Number(b.dataset.saldo)||0)); document.querySelector('#count').textContent=titulos.length; }
-    function abrirModalReceber(titulo_id, saldo){ const dlg=document.querySelector('#dlg'); dlg.classList.remove('hidden'); dlg.dataset.titulo=titulo_id; document.querySelector('#valor').value=String(saldo.toFixed(2)).replace('.',','); document.querySelector('#forma').value='DINHEIRO'; document.querySelector('#pix_area').classList.add('hidden'); document.querySelector('#brcode').value=''; }
-    async function gerarPix(){ const titulo_id=document.querySelector('#dlg').dataset.titulo; const chave_id=document.querySelector('#pix_chave').value; const valor=Number(document.querySelector('#valor').value.replace('.','').replace(',','.'))||0; const { brcode } = await API.post('pix/brcode', { titulo_id, chave_id, valor }, window.SESSION?.access_token); document.querySelector('#brcode').value=brcode||''; toast('PIX Copia e Cola gerado!'); }
-    async function confirmarRecebimento(){ const titulo_id=document.querySelector('#dlg').dataset.titulo; const forma=document.querySelector('#forma').value; const valor=Number(document.querySelector('#valor').value.replace('.','').replace(',','.'))||0; const chave_id= forma==='PIX'? document.querySelector('#pix_chave').value : null; const brcode= forma==='PIX'? document.querySelector('#brcode').value : null; await API.post('recebimentos', { titulo_id, forma, valor, chave_id, brcode }, window.SESSION?.access_token); toast('Recebimento registrado!'); document.querySelector('#dlg').classList.add('hidden'); await carregarTitulos(); }
-    window.addEventListener('DOMContentLoaded',()=>{ autocompleteClientes(); carregarChavesPix(); document.querySelector('#forma').addEventListener('change',(e)=> document.querySelector('#pix_area').classList.toggle('hidden', e.target.value!=='PIX')); document.querySelector('#btn-gerar-pix').addEventListener('click', gerarPix); document.querySelector('#btn-confirmar').addEventListener('click', confirmarRecebimento); document.querySelector('#btn-fechar').addEventListener('click', ()=> document.querySelector('#dlg').classList.add('hidden')); });
+    let cliente=null, titulos=[];
+    async function buscarCliente(q){
+      if(!q||q.length<2) return [];
+      return await API.get('clientes', { search:q, limit:10 }, window.SESSION?.access_token);
+    }
+    function autocompleteClientes(){
+      const box=document.querySelector('#cliente_busca');
+      const wrap=document.querySelector('#sugCli');
+      const ul=document.querySelector('#sugCli ul');
+      const update=debounce(async()=>{
+        const arr=await buscarCliente(box.value.trim());
+        ul.innerHTML=''; if(!arr.length){ wrap.classList.add('hidden'); return; }
+        arr.forEach(c=>{
+          const li=document.createElement('li');
+          li.className='px-3 py-2 hover:bg-slate-100 cursor-pointer';
+          li.textContent=`${c.nome} ${c.doc?('— '+c.doc):''}`;
+          li.onclick=()=>{ selecionarCliente(c); box.value=''; wrap.classList.add('hidden'); };
+          ul.appendChild(li);
+        });
+        wrap.classList.remove('hidden');
+      },200);
+      box.addEventListener('input', update);
+      box.addEventListener('blur', ()=> setTimeout(()=> wrap.classList.add('hidden'), 150));
+    }
+    async function selecionarCliente(c){
+      cliente=c;
+      document.querySelector('#cliente_sel').textContent=c.nome;
+      await carregarTitulos();
+    }
+    async function carregarTitulos(){
+      if(!cliente) return;
+      titulos = await API.get('recebimentos/abertos', { cliente_id: cliente.id }, window.SESSION?.access_token);
+      const tbody=document.querySelector('#grid tbody'); tbody.innerHTML='';
+      for (const t of (titulos||[])) {
+        const tr=document.createElement('tr'); tr.className='border-b last:border-0';
+        tr.innerHTML=`
+          <td class="py-2 px-3">${new Date(t.data).toLocaleString('pt-BR')}</td>
+          <td class="py-2 px-3">${t.venda_id}</td>
+          <td class="py-2 px-3 text-right">${money(t.total)}</td>
+          <td class="py-2 px-3 text-right">${money(t.saldo)}</td>
+          <td class="py-2 px-3 text-right"><button class="px-2 py-1 rounded-lg bg-indigo-600 text-white btn-rec" data-id="${t.id}" data-saldo="${t.saldo}">Receber</button></td>`;
+        tbody.appendChild(tr);
+      }
+      document.querySelectorAll('.btn-rec').forEach(b=> b.onclick=(e)=>{ abrirModalReceber(e.target.dataset.id, Number(e.target.dataset.saldo)||0); });
+      document.querySelector('#count').textContent=(titulos||[]).length;
+    }
+    function abrirModalReceber(titulo_id, saldo){
+      const dlg=document.querySelector('#dlg'); dlg.classList.remove('hidden'); dlg.dataset.titulo=titulo_id;
+      document.querySelector('#valor').value=String((saldo||0).toFixed(2)).replace('.',',');
+      document.querySelector('#forma').value='DINHEIRO';
+      document.querySelector('#pix_area').classList.add('hidden');
+      document.querySelector('#brcode').value='';
+    }
+    async function gerarPix(){
+      const titulo_id=document.querySelector('#dlg').dataset.titulo;
+      const chave_id=document.querySelector('#pix_chave').value;
+      const valor=Number((document.querySelector('#valor').value||'').replace('.','').replace(',','.'))||0;
+      const { brcode } = await API.post('pix/brcode', { titulo_id, chave_id, valor }, window.SESSION?.access_token);
+      document.querySelector('#brcode').value=brcode||''; toast('PIX Copia e Cola gerado!');
+    }
+    async function confirmarRecebimento(){
+      const titulo_id=document.querySelector('#dlg').dataset.titulo;
+      const forma=document.querySelector('#forma').value;
+      const valor=Number((document.querySelector('#valor').value||'').replace('.','').replace(',','.'))||0;
+      const chave_id= forma==='PIX'? document.querySelector('#pix_chave').value : null;
+      const brcode= forma==='PIX'? document.querySelector('#brcode').value : null;
+      await API.post('recebimentos', { titulo_id, forma, valor, chave_id, brcode }, window.SESSION?.access_token);
+      toast('Recebimento registrado!'); document.querySelector('#dlg').classList.add('hidden'); await carregarTitulos();
+    }
+    window.addEventListener('DOMContentLoaded',()=>{
+      autocompleteClientes();
+      document.querySelector('#forma').addEventListener('change',(e)=> document.querySelector('#pix_area').classList.toggle('hidden', e.target.value!=='PIX'));
+      document.querySelector('#btn-gerar-pix').addEventListener('click', gerarPix);
+      document.querySelector('#btn-confirmar').addEventListener('click', confirmarRecebimento);
+      document.querySelector('#btn-fechar').addEventListener('click', ()=> document.querySelector('#dlg').classList.add('hidden'));
+    });
   </script>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -40,7 +96,7 @@
       <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/recebimentos.html">Recebimentos</a>
       <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/relatorios.html">Relatórios</a>
       <span id="user-email" class="text-slate-500"></span>
-      <button id="btn-logout" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
+      <button id="btn-logout" type="button" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
     </nav>
   </div>
 </header>

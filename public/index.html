@@ -5,17 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Loja Doces — Painel</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script type="module">
-  import { requireAuth, getUser, signOut, supabase } from "./assets/auth.js";
-  await requireAuth();
-  const { data: { session } } = await supabase.auth.getSession();
-  window.SESSION = session;
-  window.addEventListener("DOMContentLoaded", async ()=>{
-    const user = await getUser(); if(user) document.querySelector("#user-email").textContent = user.email;
-    const btn = document.querySelector("#btn-logout"); if(btn) btn.onclick = signOut;
-  });
-</script>
-
+  <script type="module" src="./assets/guard.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800">
   <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
@@ -27,7 +17,7 @@
       <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/recebimentos.html">Recebimentos</a>
       <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/relatorios.html">Relatórios</a>
       <span id="user-email" class="text-slate-500"></span>
-      <button id="btn-logout" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
+      <button id="btn-logout" type="button" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
     </nav>
   </div>
 </header>

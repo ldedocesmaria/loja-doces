@@ -1,4 +1,3 @@
-// public/assets/auth.js
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./env.js";
 
@@ -19,9 +18,4 @@ export async function requireAuth() {
 export async function getUser() {
   const { data: { user } } = await supabase.auth.getUser();
   return user || null;
-}
-
-export async function signOut() {
-  await supabase.auth.signOut();
-  location.href = "/login.html";
 }

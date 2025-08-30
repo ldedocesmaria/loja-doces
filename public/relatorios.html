@@ -3,34 +3,41 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Relatórios</title>
+  <title>Relatórios — Loja Doces</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="./assets/guard.js"></script>
   <script type="module">
     import { API, money } from "./assets/app.js";
-    <script type="module">
-  import { requireAuth, getUser, signOut, supabase } from "./assets/auth.js";
-  await requireAuth();
-  const { data: { session } } = await supabase.auth.getSession();
-  window.SESSION = session;
-  window.addEventListener("DOMContentLoaded", async ()=>{
-    const user = await getUser(); if(user) document.querySelector("#user-email").textContent = user.email;
-    const btn = document.querySelector("#btn-logout"); if(btn) btn.onclick = signOut;
-  });
-</script>
-
-    async function contaCorrente(){ const cliente=document.querySelector('#cc_cliente').value.trim(); const de=document.querySelector('#cc_de').value; const ate=document.querySelector('#cc_ate').value;
+    async function contaCorrente(){
+      const cliente=document.querySelector('#cc_cliente').value.trim();
+      const de=document.querySelector('#cc_de').value;
+      const ate=document.querySelector('#cc_ate').value;
       const data=await API.get('relatorios/conta-corrente', { cliente, de, ate }, window.SESSION?.access_token);
-      const tbody=document.querySelector('#cc_grid tbody'); tbody.innerHTML=''; (data.movimentos||[]).forEach(m=>{ const tr=document.createElement('tr'); tr.className='border-b last:border-0';
-        tr.innerHTML=`<td class="py-2 px-3">${new Date(m.data).toLocaleDateString('pt-BR')}</td><td class="py-2 px-3">${m.tipo}</td><td class="py-2 px-3">${m.doc||''}</td><td class="py-2 px-3">${m.descricao||''}</td><td class="py-2 px-3 text-right">${money(m.valor)}</td>`; tbody.appendChild(tr); });
+      const tbody=document.querySelector('#cc_grid tbody'); tbody.innerHTML='';
+      for (const m of (data.movimentos||[])) {
+        const tr=document.createElement('tr'); tr.className='border-b last:border-0';
+        tr.innerHTML=`
+          <td class="py-2 px-3">${new Date(m.data).toLocaleDateString('pt-BR')}</td>
+          <td class="py-2 px-3">${m.tipo}</td>
+          <td class="py-2 px-3">${m.doc||''}</td>
+          <td class="py-2 px-3">${m.descricao||''}</td>
+          <td class="py-2 px-3 text-right">${money(m.valor)}</td>`;
+        tbody.appendChild(tr);
+      }
       document.querySelector('#cc_saldo').textContent=money(data.saldo||0);
     }
-    async function compComprasVendas(){ const de=document.querySelector('#cv_de').value; const ate=document.querySelector('#cv_ate').value;
+    async function compComprasVendas(){
+      const de=document.querySelector('#cv_de').value;
+      const ate=document.querySelector('#cv_ate').value;
       const data=await API.get('relatorios/compras-vendas', { de, ate }, window.SESSION?.access_token);
       document.querySelector('#cv_compras').textContent=money(data.compras||0);
       document.querySelector('#cv_vendas').textContent=money(data.vendas||0);
       document.querySelector('#cv_margem').textContent=money(data.margem||0);
     }
-    window.addEventListener('DOMContentLoaded',()=>{ document.querySelector('#cc_run').onclick=contaCorrente; document.querySelector('#cv_run').onclick=compComprasVendas; });
+    window.addEventListener('DOMContentLoaded',()=>{
+      document.querySelector('#cc_run').onclick=contaCorrente;
+      document.querySelector('#cv_run').onclick=compComprasVendas;
+    });
   </script>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -43,7 +50,7 @@
       <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/recebimentos.html">Recebimentos</a>
       <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100" href="/relatorios.html">Relatórios</a>
       <span id="user-email" class="text-slate-500"></span>
-      <button id="btn-logout" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
+      <button id="btn-logout" type="button" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
     </nav>
   </div>
 </header>
