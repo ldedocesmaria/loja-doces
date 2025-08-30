@@ -4,7 +4,6 @@
   "type": "module",
   "version": "1.0.0",
   "scripts": {
-    "dev": "vercel dev",
     "migrate": "echo 'Execute as migrations no Supabase SQL editor ou via CLI'"
   },
   "dependencies": {
