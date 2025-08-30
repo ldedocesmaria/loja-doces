@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./env.js";
 
-export const supabase = createClient(process.env.SUPABASE_URL || "https://wwlibjouapbjcgxmsagg.supabase.co", process.env.SUPABASE_ANON_KEY || "yJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3bGliam91YXBiamNneG1zYWdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NjM2NDYsImV4cCI6MjA3MjEzOTY0Nn0.ZCuJkgIn_NlxmAWwyWo8LmtCOdsNtB1CLs1bU3w2gwQ", {
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, detectSessionInUrl: true },
 });
 

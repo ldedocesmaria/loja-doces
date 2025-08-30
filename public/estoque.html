@@ -3,362 +3,173 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Controle de Estoque — SGV PDV</title>
+  <title>Estoque — SGV</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    .container { max-width: 1200px; }
-    .shadow-soft { box-shadow: 0 10px 30px -12px rgba(0,0,0,.25); }
-  </style>
+  <script type="module" src="./assets/guard.js"></script>
+  <script type="module">
+    import { API, toast, money, debounce } from "./assets/app.js";
+
+    let lookup = [];
+    async function carregarSaldos(search=''){
+      const data = await API.get('estoque/saldos', { search }, window.SESSION?.access_token);
+      lookup = data || [];
+      const tbody = document.querySelector('#grid tbody'); tbody.innerHTML='';
+      for(const r of lookup){
+        const tr = document.createElement('tr'); tr.className='border-b last:border-0';
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-mono text-xs text-slate-500">{{r.codigo}}</td>
+          <td class="py-2 px-3">{{r.descricao}}</td>
+          <td class="py-2 px-3">{{r.unidade||'UN'}}</td>
+          <td class="py-2 px-3 text-right">{{r.estoque??0}}</td>
+          <td class="py-2 px-3 text-right">{{money(r.custo_medio||0)}}</td>
+          <td class="py-2 px-3 text-right">{{money(r.preco_venda||0)}}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function setupAutocomplete() {
+      const box = document.querySelector('#produto');
+      const wrap = document.querySelector('#suggest'); 
+      const list = document.querySelector('#suggest ul');
+      wrap.classList.add('hidden');
+
+      function update(){
+        const q = box.value.trim().toLowerCase();
+        if(!q) { wrap.classList.add('hidden'); list.innerHTML=''; return; }
+        const res = lookup.filter(p=> (p.codigo||'').toLowerCase().includes(q) || (p.descricao||'').toLowerCase().includes(q)).slice(0,8);
+        list.innerHTML='';
+        for(const p of res){
+          const li = document.createElement('li');
+          li.className='px-3 py-2 hover:bg-slate-100 cursor-pointer';
+          li.textContent = `${p.codigo} — ${p.descricao}`;
+          li.onclick = ()=> { box.value = p.codigo; wrap.classList.add('hidden'); };
+          list.appendChild(li);
+        }
+        wrap.classList.toggle('hidden', res.length===0);
+      }
+
+      box.addEventListener('input', debounce(update, 150));
+      box.addEventListener('blur', ()=> setTimeout(()=> wrap.classList.add('hidden'), 150));
+      box.addEventListener('focus', update);
+    }
+
+    async function salvarCompra(e){
+      e.preventDefault();
+      const f = e.target;
+      const payload = {
+        produto: f.produto.value.trim(),
+        unidade: f.unidade.value||'UN',
+        preco_venda: Number((f.preco_venda.value||'').replace(',','.'))||null,
+        quantidade: Number((f.quantidade.value||'').replace(',','.'))||0,
+        valor_compra: Number((f.valor_compra.value||'').replace(',','.'))||0,
+        data: f.data.value||null
+      };
+      if(!payload.produto||!payload.quantidade||!payload.valor_compra){ toast('Preencha produto, quantidade e valor de compra','err'); return; }
+      await API.post('estoque/compra', payload, window.SESSION?.access_token);
+      toast('Compra registrada!');
+      f.reset(); f.produto.focus(); carregarSaldos(document.querySelector('#busca').value);
+    }
+
+    async function salvarAjuste(e){
+      e.preventDefault();
+      const f = e.target;
+      const payload = {
+        produto: f.produto_aj.value.trim(),
+        quantidade: Number((f.qtd.value||'').replace(',','.'))||0,
+        motivo: f.motivo.value.trim()||null
+      };
+      if(!payload.produto||!payload.quantidade){ toast('Preencha produto e quantidade','err'); return; }
+      await API.post('estoque/ajuste', payload, window.SESSION?.access_token);
+      toast('Ajuste salvo!');
+      f.reset(); f.produto_aj.focus(); carregarSaldos(document.querySelector('#busca').value);
+    }
+
+    window.addEventListener('DOMContentLoaded', ()=>{
+      document.querySelector('#form-compra').addEventListener('submit', salvarCompra);
+      document.querySelector('#form-ajuste').addEventListener('submit', salvarAjuste);
+      document.querySelector('#busca').addEventListener('input', debounce((e)=> carregarSaldos(e.target.value), 300));
+      carregarSaldos(); setupAutocomplete();
+    });
+  </script>
 </head>
 <body class="bg-slate-50 text-slate-800">
-
-  <!-- Topbar -->
-  <header class="bg-white border-b sticky top-0 z-30">
-    <nav class="container mx-auto px-4 py-3 flex items-center gap-3">
-      <div class="flex items-center gap-2 text-violet-700 font-semibold">
-        <span class="text-xl">🍬</span>
-        <span>Loja Doces</span>
-      </div>
-      <div class="flex-1"></div>
-      <a href="/produtos.html" class="px-3 py-1.5 rounded-md hover:bg-slate-100">Produtos</a>
-      <a href="/estoque.html" class="px-3 py-1.5 rounded-md bg-violet-50 text-violet-700 font-medium">Estoque</a>
-      <a href="/vendas.html" class="px-3 py-1.5 rounded-md hover:bg-slate-100">Vendas</a>
-      <a href="/recebimentos.html" class="px-3 py-1.5 rounded-md hover:bg-slate-100">Recebimentos</a>
-      <a href="/relatorios.html" class="px-3 py-1.5 rounded-md hover:bg-slate-100">Relatórios</a>
-      <button data-logout class="ml-2 px-3 py-1.5 rounded-md bg-slate-900 text-white hover:opacity-90">Sair</button>
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+  <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+    <a href="/produtos.html" class="font-semibold">🍬 Loja Doces</a>
+    <nav class="flex items-center gap-3 text-sm">
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100 " href="/produtos.html">Produtos</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100 " href="/clientes.html">Clientes</a>
+      <a class="px-3 py-1.5 rounded-lg hover:bg-slate-100 bg-slate-100" href="/estoque.html">Estoque</a>
+      <span id="user-email" class="text-slate-500"></span>
+      <button id="btn-logout" type="button" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Sair</button>
     </nav>
-  </header>
+  </div>
+</header>
 
-  <main class="container mx-auto px-4 py-6 grid gap-6">
-    <!-- Ações: Entradas e Ajustes -->
-    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Entrada de Compra -->
-      <div class="bg-white rounded-2xl shadow-soft p-5">
-        <h2 class="text-lg font-semibold mb-4">Nova entrada (compra)</h2>
+  <main class="mx-auto max-w-6xl px-4 py-6 grid lg:grid-cols-2 gap-6">
+    <section class="lg:col-span-1">
+      <div class="bg-white border rounded-2xl p-5 shadow-sm">
+        <h2 class="font-medium mb-4">Nova entrada (compra)</h2>
         <form id="form-compra" class="grid gap-3">
-          <div>
-            <label class="text-sm text-slate-600">Produto</label>
-            <div class="relative mt-1">
-              <input id="cp_produto" type="text" placeholder="Digite código ou descrição..."
-                     class="w-full px-3 py-2 rounded-xl border focus:ring-4 focus:ring-violet-200 outline-none">
-              <!-- dropdown -->
-              <ul id="cp_suggest" class="absolute z-20 left-0 right-0 mt-1 bg-white border rounded-xl shadow-lg hidden max-h-64 overflow-auto"></ul>
+          <div class="relative">
+            <label class="text-sm text-slate-500">Produto</label>
+            <input id="produto" name="produto" placeholder="Digite código ou descrição..." class="w-full mt-1 px-3 py-2 border rounded-xl" required>
+            <div id="suggest" class="absolute left-0 right-0 top-[62px] bg-white border rounded-xl shadow hidden">
+              <ul class="max-h-56 overflow-auto"></ul>
             </div>
-            <input type="hidden" id="cp_produto_id">
           </div>
-
           <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-sm text-slate-600">Unidade</label>
-              <input id="cp_un" type="text" class="w-full px-3 py-2 rounded-xl border bg-slate-50" readonly>
-            </div>
-            <div>
-              <label class="text-sm text-slate-600">Preço venda (info)</label>
-              <input id="cp_preco_venda" type="text" class="w-full px-3 py-2 rounded-xl border bg-slate-50" readonly>
-            </div>
+            <div><label class="text-sm text-slate-500">Unidade</label><input name="unidade" value="UN" class="w-full mt-1 px-3 py-2 border rounded-xl"></div>
+            <div><label class="text-sm text-slate-500">Preço venda (info)</label><input name="preco_venda" placeholder="0,00" class="w-full mt-1 px-3 py-2 border rounded-xl"></div>
           </div>
-
           <div class="grid grid-cols-3 gap-3">
-            <div>
-              <label class="text-sm text-slate-600">Quantidade</label>
-              <input id="cp_qtd" type="number" step="0.001" min="0" class="w-full px-3 py-2 rounded-xl border">
-            </div>
-            <div>
-              <label class="text-sm text-slate-600">Valor compra</label>
-              <input id="cp_valor" type="text" inputmode="decimal" placeholder="0,00"
-                     class="w-full px-3 py-2 rounded-xl border">
-            </div>
-            <div>
-              <label class="text-sm text-slate-600">Data</label>
-              <input id="cp_data" type="date" class="w-full px-3 py-2 rounded-xl border">
-            </div>
+            <div><label class="text-sm text-slate-500">Quantidade</label><input name="quantidade" placeholder="0" class="w-full mt-1 px-3 py-2 border rounded-xl"></div>
+            <div><label class="text-sm text-slate-500">Valor compra</label><input name="valor_compra" placeholder="0,00" class="w-full mt-1 px-3 py-2 border rounded-xl"></div>
+            <div><label class="text-sm text-slate-500">Data</label><input name="data" type="date" class="w-full mt-1 px-3 py-2 border rounded-xl"></div>
           </div>
-
-          <div class="flex items-center gap-3 pt-2">
-            <button class="px-4 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700">
-              Registrar compra
-            </button>
-            <span class="text-sm text-slate-500">A entrada atualiza o saldo do estoque automaticamente.</span>
-          </div>
+          <button class="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2">Registrar compra</button>
+          <p class="text-sm text-slate-500">A entrada atualiza o saldo do estoque automaticamente.</p>
         </form>
       </div>
-
-      <!-- Ajuste de Estoque -->
-      <div class="bg-white rounded-2xl shadow-soft p-5">
-        <h2 class="text-lg font-semibold mb-4">Ajuste de estoque</h2>
+    </section>
+    <section class="lg:col-span-1">
+      <div class="bg-white border rounded-2xl p-5 shadow-sm">
+        <h2 class="font-medium mb-4">Ajuste de estoque</h2>
         <form id="form-ajuste" class="grid gap-3">
-          <div>
-            <label class="text-sm text-slate-600">Produto</label>
-            <div class="relative mt-1">
-              <input id="aj_produto" type="text" placeholder="Digite código ou descrição..."
-                     class="w-full px-3 py-2 rounded-xl border focus:ring-4 focus:ring-violet-200 outline-none">
-              <ul id="aj_suggest" class="absolute z-20 left-0 right-0 mt-1 bg-white border rounded-xl shadow-lg hidden max-h-64 overflow-auto"></ul>
-            </div>
-            <input type="hidden" id="aj_produto_id">
-          </div>
-
+          <div><label class="text-sm text-slate-500">Produto</label><input name="produto_aj" placeholder="Código ou descrição..." class="w-full mt-1 px-3 py-2 border rounded-xl" required></div>
           <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-sm text-slate-600">Quantidade (+ / -)</label>
-              <input id="aj_qtd" type="number" step="0.001" class="w-full px-3 py-2 rounded-xl border" placeholder="ex.: -1 ou 5">
-            </div>
-            <div>
-              <label class="text-sm text-slate-600">Motivo</label>
-              <input id="aj_motivo" type="text" class="w-full px-3 py-2 rounded-xl border" placeholder="Ex.: quebra, inventário, correção...">
-            </div>
+            <div><label class="text-sm text-slate-500">Quantidade (+/-)</label><input name="qtd" placeholder="ex.: -1 ou 5" class="w-full mt-1 px-3 py-2 border rounded-xl" required></div>
+            <div><label class="text-sm text-slate-500">Motivo</label><input name="motivo" placeholder="Ex.: quebra, inventário..." class="w-full mt-1 px-3 py-2 border rounded-xl"></div>
           </div>
-
-          <div class="flex items-center gap-3 pt-2">
-            <button class="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800">
-              Salvar ajuste
-            </button>
-            <span class="text-sm text-slate-500">Valores positivos adicionam; negativos subtraem.</span>
-          </div>
+          <button class="mt-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-2">Salvar ajuste</button>
+          <p class="text-sm text-slate-500">Valores positivos adicionam; negativos subtraem.</p>
         </form>
       </div>
     </section>
 
-    <!-- Saldos -->
-    <section class="bg-white rounded-2xl shadow-soft p-5">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
-        <h2 class="text-lg font-semibold">Saldos de estoque</h2>
-        <div class="relative">
-          <input id="busca" type="text" placeholder="Buscar por código ou descrição..."
-                 class="w-full sm:w-96 px-3 py-2 rounded-xl border focus:ring-4 focus:ring-violet-200 outline-none">
+    <section class="lg:col-span-2">
+      <div class="bg-white border rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-medium">Saldos de estoque</h2>
+          <input id="busca" placeholder="Buscar por código ou descrição..." class="px-3 py-2 border rounded-xl w-72">
         </div>
-      </div>
-
-      <div class="overflow-auto">
-        <table class="min-w-[900px] w-full text-sm">
-          <thead>
-            <tr class="text-left bg-slate-50">
-              <th class="px-3 py-2">Código</th>
-              <th class="px-3 py-2">Descrição</th>
-              <th class="px-3 py-2">Un.</th>
-              <th class="px-3 py-2">Estoque</th>
-              <th class="px-3 py-2">Últ. compra</th>
-              <th class="px-3 py-2">Custo médio</th>
-              <th class="px-3 py-2">Preço venda</th>
-              <th class="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody id="grid" class="align-top"></tbody>
-        </table>
+        <div class="overflow-auto">
+          <table id="grid" class="w-full text-sm">
+            <thead class="text-left text-slate-500">
+              <tr>
+                <th class="py-2 px-3 font-normal">Código</th>
+                <th class="py-2 px-3 font-normal">Descrição</th>
+                <th class="py-2 px-3 font-normal">Un.</th>
+                <th class="py-2 px-3 font-normal text-right">Estoque</th>
+                <th class="py-2 px-3 font-normal text-right">Custo médio</th>
+                <th class="py-2 px-3 font-normal text-right">Preço venda</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </section>
   </main>
-
-  <!-- scripts -->
-  <script type="module">
-    import './assets/guard.js';
-    import { API, toast, money, debounce } from './assets/app.js';
-
-    // ---------- Utils ----------
-    const fmtDate = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
-    const parseCurrency = (v) => {
-      if (typeof v === 'number') return v;
-      if (!v) return 0;
-      return Number(String(v).replace(/\./g,'').replace(',','.')) || 0;
-    };
-
-    // ---------- Autocomplete ----------
-    function setupAutocomplete(inputEl, ulEl, onPick) {
-      let last = 0;
-
-      async function search(q){
-        if (!q || q.length < 1) { ulEl.classList.add('hidden'); ulEl.innerHTML = ''; return; }
-        const t = ++last;
-        // GET /api/produtos
-        const data = await API.get('produtos', { search: q, limit: 10 });
-        if (t !== last) return;
-
-        ulEl.innerHTML = '';
-        if (!data?.length) { ulEl.classList.add('hidden'); return; }
-
-        data.forEach(p => {
-          const li = document.createElement('li');
-          li.className = 'px-3 py-2 hover:bg-violet-50 cursor-pointer';
-          li.textContent = `${p.codigo} — ${p.descricao}`;
-          li.onclick = () => {
-            inputEl.value = `${p.codigo} — ${p.descricao}`;
-            ulEl.classList.add('hidden'); ulEl.innerHTML='';
-            onPick(p);
-          };
-          ulEl.appendChild(li);
-        });
-        ulEl.classList.remove('hidden');
-      }
-
-      inputEl.addEventListener('input', debounce(e => search(e.target.value), 200));
-      inputEl.addEventListener('blur', () => setTimeout(() => ulEl.classList.add('hidden'), 150));
-      inputEl.addEventListener('focus', () => { if (ulEl.children.length) ulEl.classList.remove('hidden'); });
-    }
-
-    // ---------- Entradas (compras) ----------
-    let CP = { produto: null };
-
-    function bindCompras() {
-      const inProd = document.querySelector('#cp_produto');
-      const ul = document.querySelector('#cp_suggest');
-
-      setupAutocomplete(inProd, ul, (p) => {
-        CP.produto = p;
-        document.querySelector('#cp_produto_id').value = p.id;
-        document.querySelector('#cp_un').value = p.unidade || 'UN';
-        document.querySelector('#cp_preco_venda').value = money(p.preco_venda || 0);
-        document.querySelector('#cp_qtd').focus();
-      });
-
-      // default hoje
-      document.querySelector('#cp_data').value = new Date().toISOString().slice(0,10);
-
-      document.querySelector('#form-compra').addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        try{
-          const produto_id = document.querySelector('#cp_produto_id').value;
-          const qtd = Number(document.querySelector('#cp_qtd').value);
-          const unidade = document.querySelector('#cp_un').value || 'UN';
-          const valor_compra = parseCurrency(document.querySelector('#cp_valor').value);
-          const data = document.querySelector('#cp_data').value || new Date().toISOString().slice(0,10);
-
-          if (!produto_id || !qtd || qtd <= 0) {
-            toast('Informe produto e quantidade válida.','err'); return;
-          }
-
-          // POST /api/compras  (ajuste se seu payload for diferente)
-          await API.post('compras', {
-            data,
-            itens: [{ produto_id, qtd, unidade, valor_compra }]
-          });
-
-          toast('Compra registrada e estoque atualizado!','ok');
-          e.target.reset();
-          CP.produto = null;
-          document.querySelector('#cp_un').value = '';
-          document.querySelector('#cp_preco_venda').value = '';
-          document.querySelector('#cp_data').value = new Date().toISOString().slice(0,10);
-          carregarSaldos();
-        }catch(err){
-          console.error(err);
-          toast('Não foi possível registrar a compra.','err');
-        }
-      });
-    }
-
-    // ---------- Ajustes ----------
-    let AJ = { produto: null };
-
-    function bindAjustes() {
-      const inProd = document.querySelector('#aj_produto');
-      const ul = document.querySelector('#aj_suggest');
-
-      setupAutocomplete(inProd, ul, (p) => {
-        AJ.produto = p;
-        document.querySelector('#aj_produto_id').value = p.id;
-        document.querySelector('#aj_qtd').focus();
-      });
-
-      document.querySelector('#form-ajuste').addEventListener('submit', async (e)=>{
-        e.preventDefault();
-        try{
-          const produto_id = document.querySelector('#aj_produto_id').value;
-          const qtd = Number(document.querySelector('#aj_qtd').value);
-          const motivo = document.querySelector('#aj_motivo').value.trim() || 'AJUSTE';
-
-          if (!produto_id || !qtd || qtd === 0) {
-            toast('Informe produto e quantidade (pode ser negativa).','err'); return;
-          }
-
-          // POST /api/estoque/ajuste  (ajuste se seu endpoint for outro)
-          await API.post('estoque/ajuste', { produto_id, qtd, motivo });
-
-          toast('Ajuste salvo.','ok');
-          e.target.reset(); AJ.produto = null;
-          carregarSaldos();
-        }catch(err){
-          console.error(err);
-          toast('Não foi possível salvar o ajuste.','err');
-        }
-      });
-    }
-
-    // ---------- Grid de Saldos ----------
-    async function carregarSaldos() {
-      const q = document.querySelector('#busca').value?.trim();
-      const body = document.querySelector('#grid');
-      body.innerHTML = `<tr><td colspan="8" class="px-3 py-6 text-center text-slate-500">Carregando…</td></tr>`;
-
-      try{
-        // GET /api/estoque/saldos
-        const data = await API.get('estoque/saldos', { search: q || '' });
-        if (!data?.length) {
-          body.innerHTML = `<tr><td colspan="8" class="px-3 py-6 text-center text-slate-500">Sem resultados</td></tr>`;
-          return;
-        }
-
-        body.innerHTML = '';
-        data.forEach(r => {
-          const tr = document.createElement('tr');
-          tr.className = 'border-t';
-          tr.innerHTML = `
-            <td class="px-3 py-2">${r.codigo ?? ''}</td>
-            <td class="px-3 py-2">${r.descricao ?? ''}</td>
-            <td class="px-3 py-2">${r.unidade ?? 'UN'}</td>
-            <td class="px-3 py-2">${(r.estoque ?? 0).toLocaleString('pt-BR')}</td>
-            <td class="px-3 py-2">${fmtDate(r.ultima_compra)}</td>
-            <td class="px-3 py-2">${money(r.custo_medio ?? 0)}</td>
-            <td class="px-3 py-2">${money(r.preco_venda ?? 0)}</td>
-            <td class="px-3 py-2 text-right">
-              <button data-add="${r.produto_id}" class="px-2 py-1 rounded-md bg-violet-600 text-white text-xs hover:bg-violet-700">Entrada+</button>
-              <button data-aj="${r.produto_id}" class="ml-1 px-2 py-1 rounded-md bg-slate-900 text-white text-xs hover:bg-slate-800">Ajustar</button>
-            </td>`;
-          body.appendChild(tr);
-        });
-
-        // ações rápidas
-        body.querySelectorAll('[data-add]').forEach(btn=>{
-          btn.addEventListener('click', async (e)=>{
-            const id = e.currentTarget.getAttribute('data-add');
-            // puxa o produto para preencher o card de compra
-            const [p] = await API.get('produtos', { id });
-            if (p) {
-              document.querySelector('#cp_produto').value = `${p.codigo} — ${p.descricao}`;
-              document.querySelector('#cp_produto_id').value = p.id;
-              document.querySelector('#cp_un').value = p.unidade || 'UN';
-              document.querySelector('#cp_preco_venda').value = money(p.preco_venda || 0);
-              document.querySelector('#cp_qtd').focus();
-              CP.produto = p;
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-          });
-        });
-        body.querySelectorAll('[data-aj]').forEach(btn=>{
-          btn.addEventListener('click', async (e)=>{
-            const id = e.currentTarget.getAttribute('data-aj');
-            const [p] = await API.get('produtos', { id });
-            if (p) {
-              document.querySelector('#aj_produto').value = `${p.codigo} — ${p.descricao}`;
-              document.querySelector('#aj_produto_id').value = p.id;
-              document.querySelector('#aj_qtd').focus();
-              AJ.produto = p;
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-          });
-        });
-
-      }catch(err){
-        console.error(err);
-        body.innerHTML = `<tr><td colspan="8" class="px-3 py-6 text-center text-rose-600">Erro ao carregar saldos</td></tr>`;
-      }
-    }
-
-    // ---------- Init ----------
-    window.addEventListener('DOMContentLoaded', ()=>{
-      bindCompras();
-      bindAjustes();
-      carregarSaldos();
-      document.querySelector('#busca').addEventListener('input', debounce(carregarSaldos, 250));
-    });
-  </script>
 </body>
 </html>

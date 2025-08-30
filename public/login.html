@@ -2,13 +2,13 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Login — Doces da Maria</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Entrar — Doces da Maria</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); }
-    .glass { background: rgba(255,255,255,.12); backdrop-filter: blur(12px); border:1px solid rgba(255,255,255,.25); }
-    .focus-ring:focus { box-shadow: 0 0 8px rgba(99,102,241,.55); border-color:#6366f1; outline: none; }
+    body{background:linear-gradient(135deg,#4f46e5 0%,#06b6d4 100%)}
+    .glass{background:rgba(255,255,255,.12);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.25)}
+    .focus-ring:focus{box-shadow:0 0 8px rgba(99,102,241,.55);border-color:#6366f1;outline:none}
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 text-white">
@@ -27,7 +27,6 @@
         <input id="email" type="email" autocomplete="username" required
                class="w-full mt-1 p-3 bg-white/90 text-slate-900 rounded-lg focus-ring">
       </div>
-
       <div>
         <label for="password" class="block text-sm text-white/80">Senha</label>
         <div class="relative mt-1">
@@ -36,7 +35,6 @@
           <button type="button" id="toggle" class="absolute inset-y-0 right-2 my-auto px-2 rounded text-slate-700/70 hover:text-slate-900">👁️</button>
         </div>
       </div>
-
       <button id="btn" type="submit"
               class="w-full bg-white text-slate-900 py-3 rounded-lg font-medium hover:bg-slate-100 transition disabled:opacity-70">
         Entrar
@@ -51,46 +49,41 @@
     <div id="msg" class="mt-4 hidden text-center text-sm"></div>
   </main>
 
-  <!-- supabase v2 (CDN global) -->
+  <!-- Supabase v2 (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    // === CONFIG DO SEU PROJETO ===
-    const SUPABASE_URL = "https://wwlibjouapbjcgxmsagg.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3bGliam91YXBiamNneG1zYWdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY1NjM2NDYsImV4cCI6MjA3MjEzOTY0Nn0.ZCuJkgIn_NlxmAWwyWo8LmtCOdsNtB1CLs1bU3w2gwQ";
+  <script type="module">
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./assets/env.js";
+
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, detectSessionInUrl: true }
     });
 
-    // helpers UI
-    const $ = sel => document.querySelector(sel);
-    function show(type, text){
-      const box = $('#msg');
-      box.textContent = text;
-      box.className = `mt-4 text-center text-sm px-3 py-2 rounded ${type==='ok'?'bg-emerald-500/90':'bg-rose-500/90'}`;
-      box.classList.remove('hidden');
-      setTimeout(()=> box.classList.add('hidden'), 3500);
-    }
+    const $ = s => document.querySelector(s);
+    const msg = (ok, text)=>{
+      const el = $('#msg');
+      el.textContent = text;
+      el.className = `mt-4 text-center text-sm px-3 py-2 rounded ${ok?'bg-emerald-500/90':'bg-rose-500/90'}`;
+      el.classList.remove('hidden');
+      setTimeout(()=> el.classList.add('hidden'), 3500);
+    };
 
-    // ver senha
     $('#toggle').addEventListener('click', ()=>{
       const i = $('#password');
       i.type = i.type === 'password' ? 'text' : 'password';
     });
 
-    // reset de senha
     $('#reset').addEventListener('click', async (e)=>{
       e.preventDefault();
-      const email = prompt('Informe seu e-mail para receber o link de redefinição:');
+      const email = prompt('Informe seu e-mail para receber o link:');
       if(!email) return;
       try{
         const redirectTo = `${location.origin}/login.html`;
         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
         if (error) throw error;
-        show('ok','Enviamos um e-mail com instruções.');
-      }catch(err){ show('err', err.message || 'Falha ao solicitar redefinição.'); }
+        msg(true,'Enviamos um e-mail com instruções.');
+      }catch(err){ msg(false, err.message || 'Falha ao solicitar redefinição.'); }
     });
 
-    // login com fallback para o proxy (/api/auth-proxy/login)
     $('#loginForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       const btn = $('#btn');
@@ -98,13 +91,11 @@
 
       const email = $('#email').value.trim();
       const password = $('#password').value;
-      if(!email || !password){ show('err','Preencha e-mail e senha.'); btn.disabled=false; btn.textContent=old; return; }
+      if(!email || !password){ msg(false,'Preencha e-mail e senha.'); btn.disabled=false; btn.textContent=old; return; }
 
       try{
-        // 1) tenta direto no Supabase (modelo que você enviou)
         let { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-        // 2) se der problema de rede/CORS, tenta via proxy (seu /api/auth-proxy/login)
         if (error && (error.name === 'TypeError' || /fetch/i.test(error.message))) {
           const r = await fetch('/api/auth-proxy/login', {
             method: 'POST',
@@ -117,21 +108,19 @@
             access_token: json.access_token,
             refresh_token: json.refresh_token
           });
-          data = { session: true }; // marca como ok
-          error = null;
+          data = { session: true }; error = null;
         }
 
         if (error) throw error;
         if (!data?.session) throw new Error('Sessão inválida.');
 
-        show('ok','Login realizado com sucesso!');
-        // redireciona (ajuste o destino que preferir)
-        const next = new URLSearchParams(location.search).get('next') || '/produtos.html';
+        msg(true,'Login realizado!');
+        const next = new URLSearchParams(location.search).get('next') || '/';
         setTimeout(()=> location.href = next, 700);
 
       }catch(err){
         console.error(err);
-        show('err', err.message || 'Falha de login');
+        msg(false, err.message || 'Falha de login');
       }finally{
         btn.disabled = false; btn.textContent = old;
       }

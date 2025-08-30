@@ -1,25 +1,32 @@
-// api/estoque/ajuste.js
-import { supaAdmin } from '../_lib/supa.js';
+import { serverClient, findProdutoByLoose } from '../_lib/supa.js';
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow','POST'); return res.status(405).json({ error: 'Método não permitido' });
-  }
+export const config = { runtime: 'edge' };
 
-  const { produto_id, tipo, qtd, motivo, valor_unit } = req.body || {};
-  if (!produto_id || !tipo || !qtd) return res.status(400).json({ error: 'produto_id, tipo e qtd são obrigatórios' });
+export default async function handler(req) {
+  try{
+    const supa = serverClient();
+    if(req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+    const body = await req.json();
+    const prod = await findProdutoByLoose(supa, body.produto);
+    if(!prod) return new Response('Produto não encontrado', { status: 400 });
 
-  const tiposOK = ['ADJUST_IN','ADJUST_OUT'];
-  if (!tiposOK.includes(tipo)) return res.status(400).json({ error: 'tipo inválido' });
+    const qtd = Number(body.quantidade||0);
+    if(!qtd) return new Response('Quantidade é obrigatória', { status: 400 });
 
-  try {
-    const { error } = await supaAdmin.from('estoque_mov').insert([{
-      produto_id, tipo, qtd: +qtd, motivo: motivo || null, valor_unit: valor_unit ? +valor_unit : null, origem: 'ajuste'
-    }]);
-    if (error) throw error;
-    return res.status(201).json({ ok: true });
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: e.message });
+    // movimento AJUSTE
+    const mov = { produto_codigo: prod.codigo, tipo:'AJUSTE', quantidade:qtd, valor: 0, motivo: body.motivo||null };
+    const ins = await supa.from('estoque_mov').insert(mov);
+    if(ins.error) throw ins.error;
+
+    // atualiza saldo
+    let { data: saldoRow } = await supa.from('estoque_saldo').select('*').eq('produto_codigo', prod.codigo).maybeSingle();
+    const estoqueAtual = saldoRow?.estoque || 0;
+    const novoEstoque = estoqueAtual + qtd;
+    const up = await supa.from('estoque_saldo').upsert({ produto_codigo: prod.codigo, estoque: novoEstoque, custo_medio: saldoRow?.custo_medio||0 }, { onConflict: 'produto_codigo' }).select().single();
+    if(up.error) throw up.error;
+
+    return new Response(JSON.stringify({ ok:true }), { status: 200, headers: { 'Content-Type':'application/json' }});
+  }catch(err){
+    return new Response(String(err), { status: 500 });
   }
 }
