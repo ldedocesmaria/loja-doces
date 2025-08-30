@@ -53,74 +53,68 @@
         <span class="text-white/50">v1.0</span>
       </div>
 
-      <!-- área de mensagens simples (fallback caso não use toast do app.js) -->
       <div id="msg" class="mt-3 hidden text-center text-sm"></div>
     </div>
   </main>
 
-  <!-- Lógica -->
   <script type="module">
     import { supabase } from "./assets/auth.js";
-    import { toast } from "./assets/app.js";
 
-    const showMsg = (text, type='err') => {
-      // usa toast do seu app se existir; senão, fallback simples
-      if (typeof toast === 'function') return toast(text, type);
+    const showMsg = (text, type = 'err') => {
       const el = document.getElementById('msg');
       el.textContent = text;
-      el.className = `mt-3 text-center text-sm ${type==='err' ? 'text-red-200' : 'text-emerald-200'}`;
+      el.className = `mt-3 text-center text-sm ${type === 'err' ? 'text-red-200' : 'text-emerald-200'}`;
       el.classList.remove('hidden');
-      setTimeout(()=>{ el.classList.add('hidden'); }, 3500);
+      setTimeout(() => { el.classList.add('hidden'); }, 3500);
     };
 
-    // Mostrar/ocultar senha
-    document.addEventListener('click', (e)=>{
+    document.addEventListener('click', (e) => {
       if (e.target?.id === 'btn-toggle') {
         const inp = document.getElementById('senha');
         inp.type = inp.type === 'password' ? 'text' : 'password';
       }
     });
 
-    async function doLogin(e){
+    async function doLogin(e) {
       e.preventDefault();
       const form = e.currentTarget;
       const email = form.email.value.trim();
       const password = form.senha.value;
 
-      if(!email || !password){ showMsg('Preencha e-mail e senha.','err'); return; }
+      if (!email || !password) { showMsg('Preencha e-mail e senha.', 'err'); return; }
 
       const btn = document.getElementById('btn-login');
       const old = btn.textContent;
       btn.disabled = true; btn.textContent = 'Entrando…';
 
       try {
-        // LOGIN DIRETO VIA SDK (sem proxy)
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) { showMsg(error.message, 'err'); return; }
-
+        if (error) {
+          showMsg(error.message || 'Erro ao autenticar.', 'err');
+          return;
+        }
         const next = new URLSearchParams(location.search).get('next') || '/';
         location.href = next;
       } catch (err) {
-        console.error(err);
-        showMsg('Falha de rede ao autenticar.','err');
+        console.error('Network Error:', err);
+        showMsg('Erro de rede. Verifique sua conexão ou tente novamente.', 'err');
       } finally {
         btn.disabled = false; btn.textContent = old;
       }
     }
 
-    // Esqueci minha senha (envia e-mail com link do Supabase)
-    async function resetPwd(e){
+    async function resetPwd(e) {
       e.preventDefault();
       const email = document.getElementById('email').value.trim();
-      if(!email){ showMsg('Informe o e-mail para recuperar a senha.','err'); return; }
+      if (!email) { showMsg('Informe o e-mail para recuperar a senha.', 'err'); return; }
       try {
         const redirectTo = `${location.origin}/login.html`;
         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
         if (error) return showMsg(error.message, 'err');
-        showMsg('Enviamos um link para redefinir sua senha.','ok');
+        showMsg('Enviamos um link para redefinir sua senha.', 'ok');
       } catch (err) {
         console.error(err);
-        showMsg('Não foi possível enviar o e-mail de recuperação.','err');
+        showMsg('Não foi possível enviar o e-mail de recuperação.', 'err');
       }
     }
 
