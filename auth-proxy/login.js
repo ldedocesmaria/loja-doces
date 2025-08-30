@@ -1,10 +1,9 @@
-// api/auth-proxy/login.js
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    return res.status(500).json({ error: 'Missing SUPABASE_URL or SUPABASE_ANON_KEY env' });
+    return res.status(500).json({ error: 'Missing SUPABASE_URL or SUPABASE_ANON_KEY env variables' });
   }
 
   try {
@@ -19,8 +18,14 @@ export default async function handler(req, res) {
     });
 
     const raw = await upstream.text();
+    if (!upstream.ok) {
+      console.error('Upstream error:', { status: upstream.status, raw });
+      return res.status(upstream.status).send(raw);
+    }
+
     res.status(upstream.status).send(raw);
   } catch (err) {
+    console.error('Proxy error:', err);
     res.status(500).json({ error: 'Proxy error', detail: String(err) });
   }
 }
